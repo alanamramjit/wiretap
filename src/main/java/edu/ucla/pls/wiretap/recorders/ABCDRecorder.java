@@ -105,12 +105,12 @@ public class ABCDRecorder {
 
   public final void writearray(Object o, int idx, int inst) {
     rwlock.lock();
-    log("write " + " [" + idx + "]");
+    log("write " + "[" + idx + "]");
   }
 
   public final void readarray(Object o, int idx, int inst) {
     rwlock.unlock();
-    log("read " + " [" + idx + "]");
+    log("read " + "[" + idx + "]");
   }
 
   public final void value(byte v) {}
