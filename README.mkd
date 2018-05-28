@@ -101,3 +101,13 @@ Run ant in the main repository.
 
 - Improve logging speed.
 
+
+## DDBING
+
+$ java -ea -javaagent:../wiretap/build/wiretap.jar \
+  -Dwiretap.recorder=ABCDRecorder -cp test/abcd/classes/ BetterTest
+
+$ java -ea -javaagent:../wiretap/build/wiretap.jar \
+  -Dwiretap.recorder=ABCDReplayer -Dwiretap.replayfile=assert.log -cp \
+  test/abcd/classes/ BetterTest
+
