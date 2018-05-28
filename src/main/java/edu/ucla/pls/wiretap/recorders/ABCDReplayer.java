@@ -64,7 +64,8 @@ public class ABCDReplayer {
       br = new BufferedReader(fr);
       String line = null;
       while ((line = br.readLine()) != null) {
-        permQueue.add(Integer.parseInt(line));
+        String [] items = line.split(" ", 2);
+        permQueue.add(Integer.parseInt(items[0]));
       }
       permSize = permQueue.size();
     } catch (IOException e) {
