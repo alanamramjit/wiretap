@@ -67,7 +67,7 @@ public class ABCDRecorder {
 
   public void log (String s) {
     try {
-    out.write((id + " " + s + "\n").getBytes());
+    out.write((id + " " + s + " " + value + "\n").getBytes());
     } catch (IOException e) {
     }
   }
@@ -76,6 +76,7 @@ public class ABCDRecorder {
     Closer.close("the global writer", globalWriter, 100);
   }
 
+  private Object value = null;
   private static final Lock rwlock = new ReentrantLock();
 
   public final void preread () {
@@ -109,17 +110,17 @@ public class ABCDRecorder {
   }
 
   public final void readarray(Object o, int idx, int inst) {
-    rwlock.unlock();
     log("read " + "[" + idx + "]");
+    rwlock.unlock();
   }
 
-  public final void value(byte v) {}
-  public final void value(char v) {}
-  public final void value(short v) {}
-  public final void value(int v) {}
-  public final void value(long v) {}
-  public final void value(float v) {}
-  public final void value(double v) {}
-  public final void value(Object o) {}
+  public final void value(byte v) { value = v; }
+  public final void value(char v) { value = v; }
+  public final void value(short v) { value = v; }
+  public final void value(int v) { value = v; }
+  public final void value(long v) { value = v; }
+  public final void value(float v) { value = v; }
+  public final void value(double v) { value = v; }
+  public final void value(Object o) { value = o; }
 
 }
