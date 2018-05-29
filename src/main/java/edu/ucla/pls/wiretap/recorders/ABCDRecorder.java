@@ -19,6 +19,7 @@ import edu.ucla.pls.wiretap.DeadlockDetector;
 import edu.ucla.pls.wiretap.WiretapProperties;
 import edu.ucla.pls.wiretap.utils.ConcurrentOutputStream;
 import edu.ucla.pls.wiretap.managers.FieldManager;
+import edu.ucla.pls.wiretap.managers.InstructionManager;
 import edu.ucla.pls.wiretap.Agent;
 
 public class ABCDRecorder {
@@ -28,6 +29,7 @@ public class ABCDRecorder {
 
   private static OutputStream globalWriter;
   private static FieldManager fm;
+  private static InstructionManager im;
   private static final AtomicInteger recorderId = new AtomicInteger();
 
   private final int id;
@@ -56,6 +58,7 @@ public class ABCDRecorder {
   public static void setupRecorder(final WiretapProperties properties) {
     System.out.println("setupRecorder");
     fm = Agent.v().getFieldManager();
+    im = Agent.v().getInstructionManager();
     // mm = Agent.v().getMethodManager();
     try {
       File instfile = new File(properties.getOutFolder(), "history.log");
@@ -67,9 +70,10 @@ public class ABCDRecorder {
     }
   }
 
-  public void log (String s) {
+  public void log (String s, int inst) {
     try {
-    out.write((id + " " + order++ + " " + s + " " + value + "\n").getBytes());
+      out.write((id + " " + order++ + " " + s + " " + value
+                 + " -- " + im.get(inst) +"\n").getBytes());
     } catch (IOException e) {
     }
   }
@@ -89,7 +93,7 @@ public class ABCDRecorder {
     if (field < 0) {
       field = fm.check(field);
     }
-    log("read " + fm.get(field));
+    log("read " + fm.get(field), inst);
     rwlock.unlock();
   }
 
@@ -99,7 +103,7 @@ public class ABCDRecorder {
     if (field < 0) {
       field = fm.check(field);
     }
-    log("write " + fm.get(field));
+    log("write " + fm.get(field), inst);
   }
 
   public final void postwrite () {
@@ -108,11 +112,11 @@ public class ABCDRecorder {
 
   public final void writearray(Object o, int idx, int inst) {
     rwlock.lock();
-    log("write " + "[" + idx + "]");
+    log("write " + "[" + idx + "]", inst);
   }
 
   public final void readarray(Object o, int idx, int inst) {
-    log("read " + "[" + idx + "]");
+    log("read " + "[" + idx + "]", inst);
     rwlock.unlock();
   }
 
