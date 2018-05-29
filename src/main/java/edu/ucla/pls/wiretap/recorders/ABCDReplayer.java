@@ -29,16 +29,18 @@ public class ABCDReplayer {
 
   private static final Map<Thread, ABCDReplayer> replayers =
     new ConcurrentHashMap<Thread, ABCDReplayer>();
-  private static final LinkedList<Integer> permQueue = new LinkedList<Integer>();
   private static final ArrayList<Thread> threads = new ArrayList<Thread>();
   private static Thread wakeupthread;
   private static int permSize;
 
   private final int id;
+  private int order;
 
   public ABCDReplayer (int id) {
     this.id = id;
+    this.order = order;
   }
+
   public static ABCDReplayer getRecorder() {
     return getRecorderFromThread(Thread.currentThread());
   }
@@ -54,30 +56,6 @@ public class ABCDReplayer {
       }
     }
     return r;
-  }
-
-  public static void readReplayFile(File file) {
-    FileReader fr = null;
-    BufferedReader br = null;
-    try {
-      fr = new FileReader(file);
-      br = new BufferedReader(fr);
-      String line = null;
-      while ((line = br.readLine()) != null) {
-        String [] items = line.split(" ", 2);
-        permQueue.add(Integer.parseInt(items[0]));
-      }
-      permSize = permQueue.size();
-    } catch (IOException e) {
-      e.printStackTrace();
-    } finally {
-      try {
-        if (fr != null) fr.close();
-        if (br != null) br.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
   }
 
   public static void setupRecorder(final WiretapProperties properties) {
@@ -105,10 +83,42 @@ public class ABCDReplayer {
     wakeupthread.interrupt();
   }
 
-  public static volatile int counter = 0;
+  private static Event top = null;
+  private static final LinkedList<Event> permQueue = new LinkedList<Event>();
+
+  public static void pollEvent() {
+    synchronized (permQueue) {
+      top = permQueue.pollFirst();
+    }
+  }
+
+  public static void readReplayFile(File file) {
+    FileReader fr = null;
+    BufferedReader br = null;
+    try {
+      fr = new FileReader(file);
+      br = new BufferedReader(fr);
+      String line = null;
+      while ((line = br.readLine()) != null) {
+        permQueue.add(Event.fromLine(line));
+      }
+      permSize = permQueue.size();
+      pollEvent();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      try {
+        if (fr != null) fr.close();
+        if (br != null) br.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
 
   public void printError(String msg) {
-    System.err.println(msg + " in " + id + " @ " + (permSize - permQueue.size() + 1));
+    System.err.println(msg +
+                       " in " + id + ":" + order + " -- " + top + "@" + (permSize - permQueue.size() + 1));
     Agent.v().halt(-17);
   }
 
@@ -117,7 +127,8 @@ public class ABCDReplayer {
       int count = threads.size();
       for (Thread thread : threads) {
         // System.err.println("Thread " + thread + " in state " + thread.getState());
-        if (thread.getState() == Thread.State.TERMINATED || thread.getState() == Thread.State.WAITING) {
+        if (thread.getState() == Thread.State.TERMINATED
+            || thread.getState() == Thread.State.WAITING) {
           count = count - 1;
         }
       }
@@ -129,20 +140,21 @@ public class ABCDReplayer {
     synchronized (permQueue) {
       try {
         while (true) {
-          if (permQueue.isEmpty()) {
+          if (top == null) {
             printError("- Nothing in Queue");
           }
-
-          int tid = permQueue.peekFirst();
-          //System.err.println(id + " " + tid);
-
-          if (tid == id) {
-            break;
-          } else if (threads.size() > tid && threads.get(tid).getState() == Thread.State.TERMINATED) {
-            printError("- Threads dead " + tid);
+          if (top.thread == id) {
+            if (top.order >= this.order) {
+              break;
+            } else {
+              printError("- Not supposed to happen");
+            }
+          } else if (threads.size() > top.thread
+                     && threads.get(top.thread).getState() == Thread.State.TERMINATED) {
+            printError("- Threads dead");
           } else {
             if (1 == liveCount()) {
-              printError("- All waiting: " + tid);
+              printError("- All waiting");
             }
             permQueue.wait();
           }
@@ -152,11 +164,15 @@ public class ABCDReplayer {
         Agent.v().halt(-2);
       }
     }
+    // Increment order
+    order++;
   }
 
   public void givePermission() {
     synchronized (permQueue) {
-      permQueue.pollFirst(); 
+      if (top.order < order) {
+        pollEvent();
+      }
       permQueue.notifyAll();
     }
   }
@@ -202,4 +218,26 @@ public class ABCDReplayer {
   public final void value(double v) {}
   public final void value(Object o) {}
 
+  public static class Event {
+    public final int thread;
+    public final int order;
+    public final String msg;
+
+    public Event (int thread, int order, String msg) {
+      this.thread = thread;
+      this.order = order;
+      this.msg = msg;
+    }
+
+    public static Event fromLine(String line) {
+      String [] words = line.split(" ", 3);
+      return new Event(Integer.parseInt(words[0]),
+                       Integer.parseInt(words[1]),
+                       words[2]);
+    }
+
+    public String toString() {
+      return "Event(" + thread + " " + order + " " + msg + ")";
+    }
+  }
 }

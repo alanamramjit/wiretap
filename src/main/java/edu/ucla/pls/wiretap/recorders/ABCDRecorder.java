@@ -32,10 +32,12 @@ public class ABCDRecorder {
 
   private final int id;
   private final OutputStream out;
+  private int order;
 
   public ABCDRecorder (int id, OutputStream s) {
     this.id = id;
     this.out = s;
+    this.order = order;
   }
   public static ABCDRecorder getRecorder() {
     return getRecorderFromThread(Thread.currentThread());
@@ -67,7 +69,7 @@ public class ABCDRecorder {
 
   public void log (String s) {
     try {
-    out.write((id + " " + s + " " + value + "\n").getBytes());
+    out.write((id + " " + order++ + " " + s + " " + value + "\n").getBytes());
     } catch (IOException e) {
     }
   }
