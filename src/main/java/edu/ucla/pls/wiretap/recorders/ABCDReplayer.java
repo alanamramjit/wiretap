@@ -109,37 +109,54 @@ public class ABCDReplayer {
 
   public void printError(String msg) {
     System.err.println(msg + " in " + id + " @ " + (permSize - permQueue.size() + 1));
-    System.exit(-17);
+    Agent.v().halt(-17);
+  }
+
+  public int liveCount() {
+    synchronized(threads) {
+      int count = threads.size();
+      for (Thread thread : threads) {
+        // System.err.println("Thread " + thread + " in state " + thread.getState());
+        if (thread.getState() == Thread.State.TERMINATED || thread.getState() == Thread.State.WAITING) {
+          count = count - 1;
+        }
+      }
+      return count;
+    }
   }
 
   public void waitForPermission(String msg) {
     synchronized (permQueue) {
       try {
         while (true) {
+          if (permQueue.isEmpty()) {
+            printError("- Nothing in Queue");
+          }
+
           int tid = permQueue.peekFirst();
+          //System.err.println(id + " " + tid);
+
           if (tid == id) {
             break;
           } else if (threads.size() > tid && threads.get(tid).getState() == Thread.State.TERMINATED) {
             printError("- Threads dead " + tid);
           } else {
-            counter += 1;
-            if (counter == threads.size()) {
-              printError("- All waiting");
+            if (1 == liveCount()) {
+              printError("- All waiting: " + tid);
             }
             permQueue.wait();
-            counter -= 1;
           }
         }
       } catch (InterruptedException e) {
         System.err.println("- Thread interrupted: " + id);
-        System.exit(-2);
+        Agent.v().halt(-2);
       }
     }
   }
 
   public void givePermission() {
     synchronized (permQueue) {
-      permQueue.pollFirst();
+      permQueue.pollFirst(); 
       permQueue.notifyAll();
     }
   }

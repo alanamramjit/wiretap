@@ -43,6 +43,8 @@ public class Agent implements ClassFileTransformer, Closeable {
   private final HashMap<String,String> supers;
   private final Class<?> recorder;
 
+  private Thread mainThread;
+
   private BufferedWriter classWriter;
 
   private java.lang.reflect.Method closeRecorder;
@@ -111,24 +113,28 @@ public class Agent implements ClassFileTransformer, Closeable {
       System.exit(-1);
     }
 
-    final Thread mainThread = Thread.currentThread();
+    mainThread = Thread.currentThread();
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread() {
               public void run() {
-                try {
-                  System.err.println("Waiting for the main thread to close... 2s");
-                  mainThread.join(2000);
-                  System.err.println("Closing agent");
-                  Agent.v().close();
-                  System.err.println("Agent closed... Halting system.");
-                  Runtime.getRuntime().halt(1);
-                } catch (Exception e) {
-                  System.err.println("Could not close agent");
-                  e.printStackTrace();
-                }
+                halt(1);
               }
             });
+  }
+
+  public void halt(int code) {
+    try {
+      System.err.println("Waiting for the main thread to close... 2s");
+      mainThread.join(100);
+      System.err.println("Closing agent");
+      Agent.v().close();
+      System.err.println("Agent closed... Halting system.");
+      Runtime.getRuntime().halt(code);
+    } catch (Exception e) {
+      System.err.println("Could not close agent");
+      e.printStackTrace();
+    }
   }
 
   public void close() throws IOException {
