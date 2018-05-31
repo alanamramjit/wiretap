@@ -85,6 +85,12 @@ public class ABCDRecorder {
   private Object value = null;
   private static final Lock rwlock = new ReentrantLock();
 
+  public final void fork(Object o, int inst) {
+    if (o instanceof Thread) {
+      log("fork " + o, inst);
+    }
+  }
+
   public final void preread () {
     rwlock.lock();
   }

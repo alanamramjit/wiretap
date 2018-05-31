@@ -126,10 +126,11 @@ public class ABCDReplayer {
     synchronized(threads) {
       int count = threads.size();
       for (Thread thread : threads) {
-        // System.err.println("Thread " + thread + " in state " + thread.getState());
         if (thread.getState() == Thread.State.TERMINATED
             || thread.getState() == Thread.State.WAITING) {
           count = count - 1;
+        } else {
+          // System.err.println("Thread " + thread + " in state " + thread.getState());
         }
       }
       return count;
@@ -140,6 +141,7 @@ public class ABCDReplayer {
     synchronized (permQueue) {
       try {
         while (true) {
+          // System.err.println(id + ":" + order + " " + top);
           if (top == null) {
             printError("- Nothing in Queue");
           }
@@ -179,9 +181,11 @@ public class ABCDReplayer {
 
 
   public final void fork(Object o, int inst) {
+    waitForPermission("fork");
     if (o instanceof Thread) {
       getRecorderFromThread((Thread) o);
     }
+    givePermission();
   }
 
   public final void preread () {
