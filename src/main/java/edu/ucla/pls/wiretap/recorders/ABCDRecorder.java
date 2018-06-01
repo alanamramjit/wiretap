@@ -85,6 +85,18 @@ public class ABCDRecorder {
   private Object value = null;
   private static final Lock rwlock = new ReentrantLock();
 
+  public final void join(Thread o, int inst) {
+    ABCDRecorder r = getRecorderFromThread(o);
+    try {
+      out.write((r.id + " " + -1 + " join from " + id + " -- " + im.get(inst) +"\n").getBytes());
+    } catch (IOException e) {
+    }
+  }
+
+  public final void acquire (Object l, int inst) {
+    log("acquire " + l, inst);
+  }
+
   public final void preread () {
     rwlock.lock();
   }

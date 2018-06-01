@@ -6,10 +6,10 @@ for cls in $@; do
 
   pushd $EVALPATH
 
-  # hyperfine -i --export-json pref.json \
-  #           "java -ea -cp '$DIR/test/abcd/classes/' $cls"\
-  #           "'$DIR/record.sh' $cls history.log"\
-  #           "'$DIR/replay-log.sh' $cls history.log"
+  hyperfine -i --export-json pref.json \
+            "java -ea -cp '$DIR/test/abcd/classes/' $cls"\
+            "'$DIR/record.sh' $cls history.log"\
+            "'$DIR/replay-log.sh' $cls history.log"
 
   until "$DIR/record.sh" $cls history.log 2>&1 | grep java.lang.AssertionError; do
       echo "$cls: failed at producing assertion error"

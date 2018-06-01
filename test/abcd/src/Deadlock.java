@@ -17,20 +17,10 @@ public class Deadlock extends Thread {
             preventDeadlock = true;
         }
         else if (r == 1) {
-            if (!preventDeadlock) {
-                synchronized (filesystem) {
-                    openFS();
-                    synchronized (network) {
-                        openNetwork();
-                    }
-                }
-            }
-            else {
-                synchronized (filesystem) {
-                    openFS();
-                    synchronized (network) {
-                        openNetwork();
-                    }
+            synchronized (filesystem) {
+                openFS();
+                synchronized (network) {
+                    openNetwork();
                 }
             }
         } else if (r == 2) {

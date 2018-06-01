@@ -59,20 +59,25 @@ public class ABCDReplayer {
   }
 
   public static void setupRecorder(final WiretapProperties properties) {
-    System.out.println("setupRecorder");
     readReplayFile(properties.getReplayFile());
     wakeupthread = new Thread (new Runnable () {
+        Event lastTop = null;
         public void run() {
           try {
+            Thread.sleep(100);
             while (true) {
-              Thread.sleep(1000);
+              Thread.sleep(100);
               synchronized (permQueue) {
-                permQueue.notifyAll();
+                if (lastTop != top) {
+                  lastTop = top;
+                } else {
+                  System.err.println("- Timeout due to inactivity -- " + top + "@"
+                                     + (permSize - permQueue.size() + 1));
+                  Agent.v().halt(-17);
+                }
               }
             }
-          } catch (InterruptedException e) {
-            System.err.println("WHYT");
-          }
+          } catch (InterruptedException e) {}
         }
       });
     wakeupthread.setDaemon(true);
@@ -122,19 +127,21 @@ public class ABCDReplayer {
     Agent.v().halt(-17);
   }
 
-  public int liveCount() {
-    synchronized(threads) {
-      int count = threads.size();
-      for (Thread thread : threads) {
-        // System.err.println("Thread " + thread + " in state " + thread.getState());
-        if (thread.getState() == Thread.State.TERMINATED
-            || thread.getState() == Thread.State.WAITING) {
-          count = count - 1;
-        }
-      }
-      return count;
-    }
-  }
+  // public int liveCount() {
+  //   synchronized(threads) {
+  //     int count = threads.size();
+  //     for (Thread thread : threads) {
+  //       // System.err.println("Thread " + thread + " in state " + thread.getState());
+  //       Thread.State s = thread.getState();
+  //       if (s == Thread.State.TERMINATED
+  //           || s == Thread.State.WAITING
+  //           || (s == Thread.State.BLOCKED && !getRecorderFromThread(thread).waiting) ) {
+  //         count = count - 1;
+  //       }
+  //     }
+  //     return count;
+  //   }
+  // }
 
   public void waitForPermission(String msg) {
     synchronized (permQueue) {
@@ -144,18 +151,16 @@ public class ABCDReplayer {
             printError("- Nothing in Queue");
           }
           if (top.thread == id) {
-            if (top.order >= this.order) {
+            if (top.order >= this.order || top.order == -1) {
               break;
             } else {
               printError("- Not supposed to happen");
             }
           } else if (threads.size() > top.thread
                      && threads.get(top.thread).getState() == Thread.State.TERMINATED) {
-            printError("- Threads dead");
+            pollEvent();
+            continue;
           } else {
-            if (1 == liveCount()) {
-              printError("- All waiting");
-            }
             permQueue.wait();
           }
         }
@@ -177,12 +182,29 @@ public class ABCDReplayer {
     }
   }
 
+  public final void request (Object l, int inst) {
+    waitForPermission("acquire");
+  }
+
+  public final void acquire (Object l, int inst) {
+    givePermission();
+  }
+
+  public final void join(Thread o, int inst) {
+    synchronized (permQueue) {
+      ABCDReplayer r = getRecorderFromThread(o);
+      if (top.thread == r.id) {
+        pollEvent();
+      }
+    }
+  }
 
   public final void fork(Object o, int inst) {
     if (o instanceof Thread) {
       getRecorderFromThread((Thread) o);
     }
   }
+
 
   public final void preread () {
     waitForPermission("read");
