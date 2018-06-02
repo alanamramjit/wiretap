@@ -58,23 +58,39 @@ public class ABCDReplayer {
     return r;
   }
 
+  public static int liveCount() {
+    synchronized(threads) {
+      int count = 0;
+      for (Thread thread : threads) {
+        Thread.State s = thread.getState();
+        if (s == Thread.State.RUNNABLE) count += 1;
+      }
+      return count;
+    }
+  }
+
   public static void setupRecorder(final WiretapProperties properties) {
     readReplayFile(properties.getReplayFile());
     wakeupthread = new Thread (new Runnable () {
         Event lastTop = null;
         public void run() {
+          boolean dangerzone = false;
           try {
-            Thread.sleep(100);
             while (true) {
               Thread.sleep(100);
               synchronized (permQueue) {
-                if (lastTop != top) {
-                  lastTop = top;
-                } else {
-                  System.err.println("- Timeout due to inactivity -- " + top + "@"
-                                     + (permSize - permQueue.size() + 1));
-                  Agent.v().halt(-17);
-                }
+                  if (lastTop != top) {
+                      lastTop = top;
+                  } else if (liveCount() == 0) {
+                      if (!dangerzone) { 
+                          permQueue.notifyAll();
+                          dangerzone = true;
+                      } else { 
+                          System.err.println("- Timeout due to inactivity -- " + top + "@"
+                                  + (permSize - permQueue.size() + 1));
+                          Agent.v().halt(-17);
+                      }
+                  }
               }
             }
           } catch (InterruptedException e) {}
@@ -126,38 +142,28 @@ public class ABCDReplayer {
                        " in " + id + ":" + order + " -- " + top + "@" + (permSize - permQueue.size() + 1));
     Agent.v().halt(-17);
   }
-
-  // public int liveCount() {
-  //   synchronized(threads) {
-  //     int count = threads.size();
-  //     for (Thread thread : threads) {
-  //       // System.err.println("Thread " + thread + " in state " + thread.getState());
-  //       Thread.State s = thread.getState();
-  //       if (s == Thread.State.TERMINATED
-  //           || s == Thread.State.WAITING
-  //           || (s == Thread.State.BLOCKED && !getRecorderFromThread(thread).waiting) ) {
-  //         count = count - 1;
-  //       }
-  //     }
-  //     return count;
-  //   }
   // }
+
+  public boolean isTerminated(int tid) {
+    synchronized (threads) {
+      return threads.size() > tid && threads.get(tid).getState() == Thread.State.TERMINATED;
+    }
+  }
 
   public void waitForPermission(String msg) {
     synchronized (permQueue) {
       try {
         while (true) {
           if (top == null) {
-            printError("- Nothing in Queue");
-          }
-          if (top.thread == id) {
+            printError("- Nothing in Queue: " + msg);
+          } else if (top.thread == id) {
             if (top.order >= this.order || top.order == -1) {
               break;
             } else {
               printError("- Not supposed to happen");
             }
-          } else if (threads.size() > top.thread
-                     && threads.get(top.thread).getState() == Thread.State.TERMINATED) {
+          } else if (isTerminated(top.thread)) {
+            // System.out.println("skipping: " + id + " " + top);
             pollEvent();
             continue;
           } else {
@@ -176,7 +182,7 @@ public class ABCDReplayer {
   public void givePermission() {
     synchronized (permQueue) {
       if (top.order < order) {
-        pollEvent();
+          pollEvent();
       }
       permQueue.notifyAll();
     }

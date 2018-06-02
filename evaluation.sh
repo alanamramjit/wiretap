@@ -6,7 +6,7 @@ for cls in $@; do
 
   pushd $EVALPATH
 
-  hyperfine -i --export-json pref.json \
+  hyperfine --warmup 3 -i --export-json pref.json \
             "java -ea -cp '$DIR/test/abcd/classes/' $cls"\
             "'$DIR/record.sh' $cls history.log"\
             "'$DIR/replay-log.sh' $cls history.log"
@@ -15,7 +15,9 @@ for cls in $@; do
       echo "$cls: failed at producing assertion error"
   done
 
-  time python "$DIR/../linedd/linedd" --expect 0 history.log dd.log "'$DIR/replay-log.sh' $cls" | tee linedd.msg
+  start=$(date +%s.%N)
+  python "$DIR/../linedd/linedd" --stats stats.csv --expect 0 history.log dd.log "'$DIR/replay-log.sh' $cls" | tee linedd.msg
+  end=$(date +%s.%N)
 
   popd
 
