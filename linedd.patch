@@ -1,0 +1,72 @@
+diff --git a/linedd b/linedd
+index dd55ca4..d33986a 100755
+--- a/linedd
++++ b/linedd
+@@ -5,6 +5,7 @@ import os
+ import shutil
+ import signal
+ import sys
++import time
+ import tempfile
+ import mmap
+ 
+@@ -73,6 +74,8 @@ parser = HelpParser(description="linedd: A line-oriented delta debugger.\nUsage:
+ #optional arguments
+ parser.add_argument("--expect", type=int, help="Expected exit code. If supplied, linedd will skip the initial execution of the command (default: None)", default=None)
+ 
++parser.add_argument("--stats", type=str, help="A file to output statistics in JSON (default:None)", default=None)
++
+ parser.add_argument('--signal', dest='signal', action='store_true', help="Use the full unix termination-signal, instead of just the exit code (default: --no-signal)")
+ parser.add_argument('--no-signal', dest='signal', action='store_false', help=argparse.SUPPRESS)
+ parser.set_defaults(signal=False)
+@@ -293,7 +296,21 @@ round = 0
+ nremoved = 0
+ num_left = last - first
+ 
++statswriter = None
++iterations = 0;
++statsfp = None
++if args.stats: 
++    import csv 
++    statsfp = open(args.stats, "w")
++    statswriter = csv.DictWriter(statsfp, ["round", "size", "ret", "iterations", "time"])
++    statswriter.writeheader()
++
++def write_round(i):
++    if statswriter:
++        statswriter.writerow(dict(**i, time= time.time() - timer))
++    
+ 
++timer = time.time()
+ disabledSet = set()
+ #This executes a simple binary search, first removing half the lines at a time, then a quarter of the lines at a time, and so on until eventually individual lines are removed one-by-one.
+ while(changed):
+@@ -318,6 +335,8 @@ while(changed):
+                     ntried += 1
+                     writeTo(testingFileName)
+                     ret = run(testingFileName)
++                    iterations += 1;
++                    write_round(dict(round=round, size=(nsize - cur_removed), ret=ret, iterations=iterations))
+                     if(ret == expect):
+                         changed = True
+                         writeTo(outfile)
+@@ -338,6 +357,8 @@ while(changed):
+             ntried += 1
+             writeTo(testingFileName)
+             ret = run(testingFileName)
++            iterations += 1;
++            write_round(dict(round=round, size=(nsize - cur_removed), ret=ret, iterations=iterations))
+             if(ret == expect):
+                 changed = True
+                 writeTo(outfile)
+@@ -361,7 +382,9 @@ while(changed):
+         assert(stride > 0)
+             
+     print_out("\rRound " + str(round) + ": Tried " + str(ntried) + ", Removed " + str(cur_removed) + "/" + str(nsize), end='\n')       
+-             
++
++if statsfp:
++    statsfp.close();
+ #just in case this file got over-written at some point.   
+ writeTo(outfile)    
+ os.remove(testingFileName)
