@@ -16,10 +16,8 @@ public class RVDoubleCheck{
             private Helper getHelper() {
                 if (helper == null) {
                     synchronized (this) {
-                        if (helper == null) {
-                            assert(helper == null);
-                            helper = new Helper();
-                        }
+                        assert(helper == null);
+                        helper = new Helper();
                     }
                 }
                 return helper;
