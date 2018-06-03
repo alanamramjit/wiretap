@@ -79,18 +79,18 @@ public class ABCDReplayer {
             while (true) {
               Thread.sleep(100);
               synchronized (permQueue) {
-                  if (lastTop != top) {
-                      lastTop = top;
-                  } else if (liveCount() == 0) {
-                      if (!dangerzone) { 
-                          permQueue.notifyAll();
-                          dangerzone = true;
-                      } else { 
-                          System.err.println("- Timeout due to inactivity -- " + top + "@"
-                                  + (permSize - permQueue.size() + 1));
-                          Agent.v().halt(-17);
-                      }
+                if (lastTop != top) {
+                  lastTop = top;
+                } else if (liveCount() == 0) {
+                  if (!dangerzone) {
+                    permQueue.notifyAll();
+                    dangerzone = true;
+                  } else {
+                    System.err.println("- Timeout due to inactivity -- " + top + "@"
+                                       + (permSize - permQueue.size() + 1));
+                    Agent.v().halt(-17);
                   }
+                }
               }
             }
           } catch (InterruptedException e) {}

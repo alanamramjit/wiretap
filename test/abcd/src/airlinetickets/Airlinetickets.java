@@ -92,7 +92,7 @@ public  class Airlinetickets implements Runnable{
             //throw new Exception();
         	  args = new String[2];
         	  args[0] = "output.txt";
-        	  args[1] = "lot";
+        	  args[1] = "average";
           }
            new Airlinetickets(args[0],args[1]);
            
